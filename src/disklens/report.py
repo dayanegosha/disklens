@@ -30,6 +30,8 @@ _TEMPLATE = r'''<!doctype html>
     @media(min-width:1100px){.path-cell{width:60%}}@media(max-width:900px){.shell{padding:0 25px 30px}.cards{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr;padding-top:30px;gap:16px}.scan-meta{text-align:left;display:flex;gap:10px;flex-wrap:wrap}.scan-meta strong{display:inline}.card-value{font-size:28px}td,th{padding-left:18px;padding-right:18px}}@media(max-width:550px){.shell{padding:0 14px 25px}.topbar{height:75px}.brand{font-size:24px}.private{font-size:10px;padding:6px 9px}.hero{padding:25px 0 20px}h1{font-size:30px}.cards{gap:9px}.card{padding:16px 14px;border-radius:9px}.card-value{font-size:25px}.card-label{font-size:10px;margin-bottom:10px}.card-detail{font-size:10px}.root{padding:11px 12px;gap:8px}.root-label{display:none}.section-head{padding:18px 15px 0}.section-head .small-note{display:none}.tabs{padding:0 15px;gap:18px}.toolbar{padding:16px 15px 10px;gap:8px;flex-wrap:wrap}.search-wrap{flex-basis:100%}.sort{width:100%;max-width:none}.description{padding-left:15px;padding-right:15px}.pagination{padding:12px 15px;align-items:flex-start;flex-wrap:wrap}.notes{grid-template-columns:1fr;gap:18px}.groups{padding-left:15px;padding-right:15px}.duplicate-top{align-items:flex-start;flex-direction:column;gap:4px}.duplicate-path{padding:10px}.footer{margin-top:25px;flex-wrap:wrap}.date{display:none}th.date-heading{display:none}.path-cell{min-width:200px}.file-icon{display:none}td,th{padding:11px 13px}}
     @media(prefers-reduced-motion:no-preference){button{transition:color .15s,border-color .15s,background .15s}}
     @media print{body{background:#fff}.shell{max-width:none;padding:0}.toolbar,.pagination,.copy,.more-paths,.download{display:none}.cards{grid-template-columns:repeat(4,1fr)}.card,.workspace{box-shadow:none}.topbar{height:60px}.hero{padding-top:20px}.workspace{overflow:visible}.table-wrap{overflow:visible}.tab[aria-selected="false"]{display:none}.notes{break-inside:avoid}.private{color:var(--ink)}.footer{margin-top:20px}}
+    .aliases{margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:9px;font-size:12px}.aliases>summary{padding:14px 18px;cursor:pointer;color:var(--teal);font-weight:550}.aliases-note{padding:0 18px;margin:0 0 12px;color:var(--muted);font-size:11px}.alias-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px 18px;border-top:1px solid #edeee6}.alias-row code{font-size:11px;overflow-wrap:anywhere;word-break:break-word}.alias-arrow{color:var(--muted)}.aliases .more-paths{margin:0 3px}.note .scan-options{margin-top:7px;overflow-wrap:anywhere}.alias-target{color:var(--muted)}
+    @media(max-width:550px){.alias-row{grid-template-columns:minmax(0,1fr) auto;gap:5px 10px}.alias-arrow{display:none}.alias-target{grid-column:1;grid-row:2}.alias-row .copy{grid-column:2;grid-row:1 / 3}.aliases>summary{padding:13px 15px}.aliases-note{padding:0 15px}.alias-row{padding:11px 15px}}
   </style>
 </head>
 <body>
@@ -65,9 +67,15 @@ _TEMPLATE = r'''<!doctype html>
         <div id="panel" role="tabpanel" aria-labelledby="tab-files" tabindex="0"><div id="list"></div></div>
         <div class="pagination"><span id="result-count" role="status" aria-live="polite"></span><div class="page-buttons"><button id="prev" type="button" aria-label="предыдущая страница">←</button><span class="page-number" id="page-number"></span><button id="next" type="button" aria-label="следующая страница">→</button></div></div>
       </section>
+      <details class="aliases" id="aliases" hidden>
+        <summary id="aliases-title">жёсткие ссылки</summary>
+        <p class="aliases-note">это дополнительные имена тех же файлов, а не отдельные копии данных. в общем объёме каждый файл учтён один раз. слева — ссылка, справа — учтённый путь.</p>
+        <div id="alias-list"></div>
+        <button class="more-paths" id="more-aliases" type="button" hidden></button>
+      </details>
       <div class="notes">
         <div class="note"><strong>размер и место на диске</strong><p>здесь указан логический размер файлов. сжатие, разреженные файлы и клоны файловой системы влияют на реальное свободное место. вложенные папки включают размер своих подпапок — их нельзя складывать.</p></div>
-        <div class="note"><strong>никаких автоматических удалений</strong><p id="safety-note">совпадение содержимого ещё не означает, что копия не нужна. проверь пути и назначение файлов перед очисткой. отчёт не меняет исходные файлы.</p></div>
+        <div class="note"><strong>никаких автоматических удалений</strong><p id="safety-note">совпадение содержимого ещё не означает, что копия не нужна. проверь пути и назначение файлов перед очисткой. отчёт не меняет исходные файлы.</p><p class="scan-options" id="scan-options"></p></div>
       </div>
     </main>
     <footer class="footer"><span>.disklens · без сервера и внешних запросов</span><span>отчёт содержит имена и пути файлов · <button class="download" id="download" type="button">скачать данные JSON</button></span></footer>
@@ -79,6 +87,9 @@ _TEMPLATE = r'''<!doctype html>
     'use strict';
     const report = JSON.parse(document.getElementById('report-data').textContent);
     const summary = report.summary;
+    const scanOptions = report.options || {};
+    const duplicateSearch = scanOptions.find_duplicates !== false;
+    const minimumDuplicateSize = scanOptions.min_duplicate_size || 1;
     const el = id => document.getElementById(id);
     const number = value => Number(value || 0).toLocaleString('ru-RU');
     const bytes = value => {
@@ -142,17 +153,44 @@ _TEMPLATE = r'''<!doctype html>
     el('total-size').textContent = bytes(summary.total_bytes);
     el('file-count').textContent = number(summary.files);
     el('directory-count').textContent = 'папок: ' + number(summary.directories);
-    el('duplicate-size').textContent = bytes(summary.duplicate_bytes);
-    el('duplicate-count').textContent = 'групп совпадений: ' + number(summary.duplicate_groups);
+    el('duplicate-size').textContent = duplicateSearch ? bytes(summary.duplicate_bytes) : '—';
+    el('duplicate-count').textContent = duplicateSearch ? 'групп совпадений: ' + number(summary.duplicate_groups) : 'поиск дубликатов отключён';
     el('issue-count').textContent = number(report.issues.length);
     el('issue-detail').textContent = report.issues.length ? 'ошибки доступа и изменения файлов' : 'сканирование без замечаний';
     el('safety-note').append(document.createTextNode(' пропущено символических ссылок: ' + number(summary.symlinks_skipped) + ', жёстких ссылок: ' + number(summary.hardlinks_skipped) + ', по исключениям: ' + number(summary.excluded) + '.'));
+    if (scanOptions.excludes && scanOptions.excludes.length) {
+      el('scan-options').textContent = 'исключения: ' + scanOptions.excludes.join(', ') + '.';
+    }
+
+    const aliases = report.hardlinks || [];
+    if (aliases.length) {
+      el('aliases').hidden = false;
+      el('aliases-title').textContent = 'жёсткие ссылки · ' + number(aliases.length);
+      let shown = 0;
+      const showAliases = () => {
+        const limit = Math.min(aliases.length, shown + 20);
+        const fragment = document.createDocumentFragment();
+        for (; shown < limit; shown++) {
+          const alias = aliases[shown];
+          const row = node('div', 'alias-row');
+          row.append(node('code', '', alias.path), node('span', 'alias-arrow', '→'), node('code', 'alias-target', alias.target), copyButton(alias.path));
+          fragment.append(row);
+        }
+        el('alias-list').append(fragment);
+        el('more-aliases').hidden = shown >= aliases.length;
+        el('more-aliases').textContent = 'показать ещё ' + number(Math.min(20, aliases.length - shown)) + ' из ' + number(aliases.length - shown) + ' ссылок';
+      };
+      el('aliases').addEventListener('toggle', () => {
+        if (el('aliases').open && shown === 0) showAliases();
+      });
+      el('more-aliases').addEventListener('click', showAliases);
+    }
 
     const tabs = [...document.querySelectorAll('[data-tab]')];
     const sources = {files:report.files, duplicates:report.duplicates, directories:report.directories, issues:report.issues};
     const descriptions = {
       files:'все найденные файлы, начиная с самых больших. размер указан в двоичных единицах: 1 КиБ = 1024 Б.',
-      duplicates:'совпадение подтверждено SHA-256. объём копий рассчитан при сохранении одного файла в каждой группе; фактическое освобождение места может отличаться.',
+      duplicates:duplicateSearch ? 'совпадение подтверждено SHA-256. объём копий рассчитан при сохранении одного файла в каждой группе; фактическое освобождение места может отличаться.' + (minimumDuplicateSize > 1 ? ' искались файлы от ' + bytes(minimumDuplicateSize) + '.' : '') : 'поиск дубликатов отключён. этот отчёт показывает размеры файлов и папок без проверки совпадений содержимого.',
       directories:'размер каждой папки вместе с её содержимым и подпапками. строка «.» — вся просканированная папка.',
       issues:'файлы и папки, которые не удалось прочитать, и файлы, изменившиеся во время сканирования.'
     };
@@ -165,7 +203,7 @@ _TEMPLATE = r'''<!doctype html>
     const state = {tab:'files', query:'', sort:'size-desc', page:0, rows:[]};
     const pageSize = () => state.tab === 'duplicates' ? 15 : 50;
     tabs.forEach(tab => {
-      el('badge-' + tab.dataset.tab).textContent = number(sources[tab.dataset.tab].length);
+      el('badge-' + tab.dataset.tab).textContent = tab.dataset.tab === 'duplicates' && !duplicateSearch ? '—' : number(sources[tab.dataset.tab].length);
       tab.addEventListener('click', () => activate(tab.dataset.tab));
       tab.addEventListener('keydown', event => {
         const index = tabs.indexOf(tab);
@@ -191,6 +229,7 @@ _TEMPLATE = r'''<!doctype html>
       el('sort').replaceChildren(...options[tab].map(([value, label]) => {
         const option = node('option', '', label); option.value = value; return option;
       }));
+      el('sort').disabled = tab === 'duplicates' && !duplicateSearch;
       update();
     }
     function update() {
@@ -286,7 +325,7 @@ _TEMPLATE = r'''<!doctype html>
       const rows = state.rows.slice(start, start + pageSize());
       if (!rows.length) {
         const empty = node('div', 'empty');
-        const message = state.query ? ['ничего не найдено','попробуй другой запрос или открой соседний раздел.'] : state.tab === 'duplicates' ? ['одинаковых копий не найдено','в этой папке нет подтверждённых дубликатов в пределах выбранных настроек.'] : state.tab === 'issues' ? ['всё прочитано без замечаний','сканирование не обнаружило ошибок доступа или изменившихся файлов.'] : ['здесь пока пусто','возможно, файлы не попали под выбранные настройки сканирования.'];
+        const message = state.tab === 'duplicates' && !duplicateSearch ? ['поиск дубликатов отключён','для проверки совпадений создай новый отчёт без флага --no-duplicates.'] : state.query ? ['ничего не найдено','попробуй другой запрос или открой соседний раздел.'] : state.tab === 'duplicates' ? ['одинаковых копий не найдено','в этой папке нет подтверждённых дубликатов в пределах выбранных настроек.'] : state.tab === 'issues' ? ['всё прочитано без замечаний','сканирование не обнаружило ошибок доступа или изменившихся файлов.'] : ['здесь пока пусто','возможно, файлы не попали под выбранные настройки сканирования.'];
         empty.append(node('strong','',message[0]),node('p','',message[1])); el('list').replaceChildren(empty);
       } else {
         el('list').replaceChildren(state.tab === 'duplicates' ? duplicateGroups(rows) : table(rows));

@@ -27,6 +27,7 @@ def sample_report():
                         "paths": ["first.txt", "second.txt"]}],
         "issues": [],
         "hardlinks": [],
+        "options": {"find_duplicates": True, "min_duplicate_size": 1, "excludes": []},
     }
 
 
@@ -54,6 +55,8 @@ class ReportTests(unittest.TestCase):
         report["files"][0]["path"] = hostile
         report["duplicates"][0]["paths"][0] = hostile
         report["issues"] = [{"path": hostile, "message": hostile}]
+        report["hardlinks"] = [{"path": hostile, "target": hostile}]
+        report["options"]["excludes"] = [hostile]
 
         html = render_html(report)
         payload = self.embedded_data(html)
@@ -78,6 +81,21 @@ class ReportTests(unittest.TestCase):
         html = render_html(report)
 
         self.assertEqual(json.loads(self.embedded_data(html)), report)
+
+    def test_scan_options_and_hardlink_targets_survive_serialization(self):
+        report = sample_report()
+        report["options"] = {
+            "find_duplicates": False,
+            "min_duplicate_size": 1024 * 1024,
+            "excludes": ["*.tmp", "архив/копии/*"],
+        }
+        report["duplicates"] = []
+        report["hardlinks"] = [{"path": "копии/файл.txt", "target": "first.txt"}]
+
+        data = json.loads(self.embedded_data(render_html(report)))
+
+        self.assertEqual(data["options"], report["options"])
+        self.assertEqual(data["hardlinks"], report["hardlinks"])
 
     def test_report_has_no_external_asset_dependencies(self):
         html = render_html(sample_report())
