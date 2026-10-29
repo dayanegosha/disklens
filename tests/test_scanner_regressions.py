@@ -1,5 +1,6 @@
 import hashlib
 import os
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,17 @@ class ScannerRegressionTests(unittest.TestCase):
         self.parent = Path(temporary.name).resolve()
         self.root = self.parent / "files"
         self.root.mkdir()
+
+    def test_path_and_open_file_metadata_agree_for_unchanged_files(self):
+        fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+        for index in range(30):
+            path = self.root / f"file-{index}.txt"
+            path.write_bytes(b"unchanged content")
+            before = os.stat(path, follow_symlinks=False)
+            with path.open("rb") as stream:
+                opened = os.fstat(stream.fileno())
+            self.assertEqual({name: getattr(before, name) for name in fields},
+                             {name: getattr(opened, name) for name in fields})
 
     def test_later_hashing_cannot_leave_an_earlier_changed_duplicate_confirmed(self):
         for name, content in (("a", b"a"), ("b", b"a"), ("c", b"cc"), ("d", b"cc")):
