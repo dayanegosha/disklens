@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "disklens"
+version = "0.1.0"
+description = "Local disk reports and duplicate file finder"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "George Zhurik", email = "georgezhurik@gmail.com"}]
+dependencies = []
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Filesystems",
+]
+
+[project.scripts]
+disklens = "disklens.cli:main"
+
+[project.urls]
+Repository = "https://github.com/dayanegosha/disklens"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+disklens = ["assets/*"]
