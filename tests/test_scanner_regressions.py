@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from disklens import scanner
@@ -18,7 +19,7 @@ class ScannerRegressionTests(unittest.TestCase):
         self.root.mkdir()
 
     def test_path_and_open_file_metadata_agree_for_unchanged_files(self):
-        fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+        fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns")
         for index in range(30):
             path = self.root / f"file-{index}.txt"
             path.write_bytes(b"unchanged content")
@@ -27,6 +28,16 @@ class ScannerRegressionTests(unittest.TestCase):
                 opened = os.fstat(stream.fileno())
             self.assertEqual({name: getattr(before, name) for name in fields},
                              {name: getattr(opened, name) for name in fields})
+            self.assertEqual(scanner._metadata_time(before), scanner._metadata_time(opened))
+
+    def test_windows_birthtime_keeps_unchanged_files_valid_when_ctime_semantics_differ(self):
+        entry = scanner.FileEntry("file.txt", 100, 1000, 500, 1, 2)
+        descriptor_info = SimpleNamespace(st_mode=0o100644, st_dev=1, st_ino=2,
+                                          st_size=100, st_mtime_ns=1000,
+                                          st_ctime_ns=900, st_birthtime_ns=500)
+        with patch.object(scanner.os, "name", "nt"):
+            matches = scanner._matches(entry, descriptor_info)
+        self.assertTrue(matches)
 
     def test_later_hashing_cannot_leave_an_earlier_changed_duplicate_confirmed(self):
         for name, content in (("a", b"a"), ("b", b"a"), ("c", b"cc"), ("d", b"cc")):

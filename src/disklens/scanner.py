@@ -26,10 +26,17 @@ class ChangedFileError(OSError):
     pass
 
 
+def _metadata_time(info: os.stat_result) -> int:
+    # В Windows stat и fstat трактуют ctime по-разному; birthtime согласован.
+    if os.name == "nt":
+        return getattr(info, "st_birthtime_ns", info.st_ctime_ns)
+    return info.st_ctime_ns
+
+
 def _matches(file: FileEntry, info: os.stat_result) -> bool:
     return (stat.S_ISREG(info.st_mode)
             and (file.device, file.inode, file.size, file.mtime_ns, file.ctime_ns)
-            == (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns))
+            == (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, _metadata_time(info)))
 
 
 def _read_exact(descriptor: int, count: int) -> bytes:
@@ -214,7 +221,7 @@ def scan(
                         continue
                     seen[identity] = relative
                     files.append(FileEntry(relative, info.st_size, info.st_mtime_ns,
-                                           info.st_ctime_ns, info.st_dev, info.st_ino))
+                                           _metadata_time(info), info.st_dev, info.st_ino))
                     if progress and len(files) % 250 == 0:
                         progress("scan", len(files))
                 else:
