@@ -1,0 +1,318 @@
+"""Самодостаточный HTML-отчёт: данные остаются в локальном файле."""
+
+from __future__ import annotations
+
+import json
+
+
+def render_html(report: dict) -> str:
+    # Экранирование не позволяет имени файла закрыть JSON-блок или вставить HTML.
+    payload = json.dumps(report, ensure_ascii=True, allow_nan=False)
+    payload = payload.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+    return _TEMPLATE.replace("__DISKLENS_DATA__", payload)
+
+
+_TEMPLATE = r'''<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>.disklens — локальный отчёт</title>
+  <style>
+    :root{--bg:#f6f4ef;--paper:#fffefa;--ink:#222b2a;--muted:#71766e;--line:#dedfd5;--orange:#d86335;--orange-pale:#fbede4;--teal:#27736c;--teal-pale:#e6efea;--shadow:0 7px 24px #23322a05}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.55}button,input,select{font:inherit}button,select{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #d8633566;outline-offset:3px}button{color:inherit}button:disabled{opacity:.4;cursor:default}a{color:var(--teal)}
+    .shell{max-width:1320px;margin:auto;padding:0 46px 40px}.topbar{height:94px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:20px}.brand{font-size:27px;font-weight:750;letter-spacing:-1.3px;line-height:1}.brand i{font-style:normal;color:var(--orange)}.private{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--teal);background:var(--teal-pale);border:1px solid #d8e6dd;border-radius:30px;padding:7px 12px}.private svg{width:14px;height:14px}
+    .hero{padding:39px 0 27px;display:grid;grid-template-columns:1fr auto;gap:28px;align-items:end}.eyebrow{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:650}h1{font-size:clamp(28px,3.5vw,43px);line-height:1.14;letter-spacing:-1.6px;margin:0 0 14px;font-weight:650}.intro{max-width:620px;color:var(--muted);margin:0;font-size:14px}.scan-meta{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}.scan-meta strong{display:block;color:var(--ink);font-weight:500;margin-bottom:3px}.root{display:flex;align-items:center;gap:12px;background:#eeeee7;border:1px solid var(--line);padding:13px 16px;border-radius:9px;margin-bottom:24px}.root-label{color:var(--muted);font-size:11px;white-space:nowrap}.root code{font-size:12px;overflow-wrap:anywhere;flex:1;min-width:0}.root .copy{flex-shrink:0}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:25px}.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:21px 22px;box-shadow:var(--shadow);position:relative;overflow:hidden}.card.accent{background:var(--teal);border-color:var(--teal);color:#fff}.card.accent::after{content:"";width:95px;height:95px;border:17px solid #ffffff0a;border-radius:50%;position:absolute;right:-28px;bottom:-33px}.card-label{font-size:12px;color:var(--muted);margin-bottom:12px}.accent .card-label,.accent .card-detail{color:#d7e5dc}.card-value{font-size:31px;letter-spacing:-1.2px;font-weight:650;line-height:1.15}.card-detail{font-size:11px;color:var(--muted);margin-top:10px}.card.orange .card-value{color:var(--orange)}
+    .workspace{background:var(--paper);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);overflow:hidden}.section-head{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:23px 24px 0}h2{font-size:18px;letter-spacing:-.5px;margin:0;font-weight:650}.small-note{font-size:11px;color:var(--muted)}.tabs{display:flex;gap:23px;padding:0 24px;margin-top:17px;border-bottom:1px solid var(--line);overflow:auto}.tab{white-space:nowrap;background:none;border:0;padding:0 0 14px;position:relative;color:var(--muted);font-size:12px}.tab[aria-selected="true"]{color:var(--ink);font-weight:650}.tab[aria-selected="true"]::after{content:"";position:absolute;height:3px;background:var(--orange);bottom:-1px;left:0;right:0;border-radius:3px 3px 0 0}.tab .badge{font-size:10px;border-radius:5px;background:#edeee7;padding:2px 5px;margin-left:6px;font-weight:500;color:var(--muted)}.toolbar{display:flex;gap:12px;padding:20px 24px 12px}.search-wrap{position:relative;flex:1}.search-wrap svg{position:absolute;width:16px;height:16px;left:12px;top:13px;color:#7c8279;pointer-events:none}.search-wrap input{width:100%;background:#fafaf6;border:1px solid var(--line);border-radius:7px;padding:10px 12px 10px 37px;font-size:12px;min-width:0;color:var(--ink)}.sort{max-width:185px;background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:9px 12px;font-size:12px}.description{padding:0 24px 15px;color:var(--muted);font-size:11px;margin:0;min-height:33px}.table-wrap{overflow-x:auto;min-height:210px}table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}thead{background:#f8f8f2;color:var(--muted);font-size:10px;letter-spacing:.3px}th{padding:10px 24px;font-weight:550;white-space:nowrap}td{padding:13px 24px;border-top:1px solid #edeee6;vertical-align:middle}tbody tr:hover{background:#fafbf7}.path-cell{min-width:210px;max-width:650px}.path-line{display:flex;align-items:center;gap:11px;min-width:0}.file-icon{width:29px;height:34px;flex-shrink:0;border:1px solid #dce0d6;border-radius:5px;background:#f1f3eb;display:flex;align-items:center;justify-content:center;color:#7a8274;font-size:8px;letter-spacing:.3px;text-transform:uppercase}.file-icon.folder{height:25px;background:var(--orange-pale);border-color:#efd7c7;color:var(--orange)}.path-name{font-weight:550;overflow-wrap:anywhere;word-break:break-word}.path-parent{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere;word-break:break-word}.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.date{color:var(--muted);white-space:nowrap;font-size:11px}.size-track{display:block;height:3px;background:#eeeae0;width:70px;border-radius:3px;margin:6px 0 0 auto;overflow:hidden}.size-track span{display:block;height:100%;background:#d5aa83;border-radius:3px}.copy{background:transparent;border:1px solid var(--line);color:var(--muted);font-size:10px;border-radius:5px;padding:4px 7px;white-space:nowrap}.copy:hover{color:var(--teal);border-color:var(--teal)}.actions{text-align:right;width:1%}
+    .pagination{border-top:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:15px;color:var(--muted);font-size:11px}.page-buttons{display:flex;gap:7px;align-items:center}.page-buttons button{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:12px}.page-number{padding:0 6px;min-width:65px;text-align:center}.empty{padding:45px 24px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:15px;margin-bottom:6px;font-weight:550}.empty p{margin:0;font-size:12px}.groups{padding:0 24px 18px}.duplicate{border:1px solid var(--line);border-radius:8px;margin:0 0 12px;overflow:hidden}.duplicate-top{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f7f8f1;padding:12px 15px;font-size:12px}.duplicate-top strong{font-size:13px;font-weight:600}.reclaimable{color:var(--orange);font-weight:550;white-space:nowrap}.duplicate-path{padding:10px 15px;border-top:1px solid #e9ece1;display:flex;align-items:center;gap:12px}.duplicate-path code{font-size:11px;flex:1;overflow-wrap:anywhere;min-width:0}.path-marker{font-size:10px;color:var(--muted);flex-shrink:0;width:16px}.more-paths{border:0;background:none;color:var(--teal);font-size:11px;padding:10px 15px}.hash{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted);font-size:9px;padding:7px 15px;border-top:1px solid #e9ece1;overflow-wrap:anywhere}.issue-message{color:#95643e;max-width:480px;overflow-wrap:anywhere}.notes{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:25px}.note{border-top:1px solid var(--line);padding-top:16px;font-size:11px;color:var(--muted)}.note strong{display:block;font-size:12px;color:var(--ink);font-weight:550;margin-bottom:5px}.note p{margin:0}.footer{display:flex;justify-content:space-between;gap:20px;margin-top:32px;font-size:10px;color:#91958c}.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:12px;box-shadow:0 4px 20px #0002;z-index:2}.toast[hidden]{display:none}.noscript{background:var(--orange-pale);padding:18px;border-radius:8px;margin:20px 0}.download{border:0;background:transparent;color:var(--teal);font-size:11px;padding:0;text-decoration:underline;text-underline-offset:3px}.skip-link{position:absolute;top:-60px;left:12px;background:var(--ink);color:white;padding:8px 12px;z-index:3}.skip-link:focus{top:8px}
+    @media(min-width:1100px){.path-cell{width:60%}}@media(max-width:900px){.shell{padding:0 25px 30px}.cards{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr;padding-top:30px;gap:16px}.scan-meta{text-align:left;display:flex;gap:10px;flex-wrap:wrap}.scan-meta strong{display:inline}.card-value{font-size:28px}td,th{padding-left:18px;padding-right:18px}}@media(max-width:550px){.shell{padding:0 14px 25px}.topbar{height:75px}.brand{font-size:24px}.private{font-size:10px;padding:6px 9px}.hero{padding:25px 0 20px}h1{font-size:30px}.cards{gap:9px}.card{padding:16px 14px;border-radius:9px}.card-value{font-size:25px}.card-label{font-size:10px;margin-bottom:10px}.card-detail{font-size:10px}.root{padding:11px 12px;gap:8px}.root-label{display:none}.section-head{padding:18px 15px 0}.section-head .small-note{display:none}.tabs{padding:0 15px;gap:18px}.toolbar{padding:16px 15px 10px;gap:8px;flex-wrap:wrap}.search-wrap{flex-basis:100%}.sort{width:100%;max-width:none}.description{padding-left:15px;padding-right:15px}.pagination{padding:12px 15px;align-items:flex-start;flex-wrap:wrap}.notes{grid-template-columns:1fr;gap:18px}.groups{padding-left:15px;padding-right:15px}.duplicate-top{align-items:flex-start;flex-direction:column;gap:4px}.duplicate-path{padding:10px}.footer{margin-top:25px;flex-wrap:wrap}.date{display:none}th.date-heading{display:none}.path-cell{min-width:200px}.file-icon{display:none}td,th{padding:11px 13px}}
+    @media(prefers-reduced-motion:no-preference){button{transition:color .15s,border-color .15s,background .15s}}
+    @media print{body{background:#fff}.shell{max-width:none;padding:0}.toolbar,.pagination,.copy,.more-paths,.download{display:none}.cards{grid-template-columns:repeat(4,1fr)}.card,.workspace{box-shadow:none}.topbar{height:60px}.hero{padding-top:20px}.workspace{overflow:visible}.table-wrap{overflow:visible}.tab[aria-selected="false"]{display:none}.notes{break-inside:avoid}.private{color:var(--ink)}.footer{margin-top:20px}}
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#results">к результатам</a>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><i>.</i>disklens</div>
+      <div class="private"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6Z"/><path d="m8 12 3 3 5-6"/></svg>локальный отчёт</div>
+    </header>
+    <main>
+      <div class="hero">
+        <div><p class="eyebrow">пространство под контролем</p><h1>что занимает место?</h1><p class="intro">большие файлы, одинаковые копии и объём папок — в одном месте. выбери, что стоит оставить.</p></div>
+        <div class="scan-meta"><strong id="scan-date"></strong><span id="scan-duration"></span></div>
+      </div>
+      <div class="root"><span class="root-label">папка</span><code id="root-path"></code><button class="copy" id="copy-root" type="button">копировать путь</button></div>
+      <noscript><div class="noscript">для просмотра таблиц включи JavaScript. данные уже находятся в этом файле; подключение к интернету не нужно.</div></noscript>
+      <div class="cards">
+        <div class="card accent"><div class="card-label">объём файлов</div><div class="card-value" id="total-size">—</div><div class="card-detail">логический размер, ссылки учтены один раз</div></div>
+        <div class="card"><div class="card-label">просмотрено файлов</div><div class="card-value" id="file-count">—</div><div class="card-detail" id="directory-count">—</div></div>
+        <div class="card orange"><div class="card-label">объём лишних копий</div><div class="card-value" id="duplicate-size">—</div><div class="card-detail" id="duplicate-count">—</div></div>
+        <div class="card"><div class="card-label">требуют внимания</div><div class="card-value" id="issue-count">—</div><div class="card-detail" id="issue-detail">—</div></div>
+      </div>
+      <section class="workspace" id="results" aria-labelledby="results-title">
+        <div class="section-head"><h2 id="results-title">разберём по полочкам</h2><span class="small-note">только просмотр · файлы не удаляются</span></div>
+        <div class="tabs" role="tablist" aria-label="разделы отчёта">
+          <button class="tab" type="button" role="tab" id="tab-files" data-tab="files" aria-selected="true" aria-controls="panel">большие файлы<span class="badge" id="badge-files"></span></button>
+          <button class="tab" type="button" role="tab" id="tab-duplicates" data-tab="duplicates" aria-selected="false" aria-controls="panel" tabindex="-1">дубликаты<span class="badge" id="badge-duplicates"></span></button>
+          <button class="tab" type="button" role="tab" id="tab-directories" data-tab="directories" aria-selected="false" aria-controls="panel" tabindex="-1">папки<span class="badge" id="badge-directories"></span></button>
+          <button class="tab" type="button" role="tab" id="tab-issues" data-tab="issues" aria-selected="false" aria-controls="panel" tabindex="-1">замечания<span class="badge" id="badge-issues"></span></button>
+        </div>
+        <div class="toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="search" type="search" placeholder="найти по имени или пути…" aria-label="поиск по имени или пути" autocomplete="off" spellcheck="false"></div><select class="sort" id="sort" aria-label="сортировка"></select></div>
+        <p class="description" id="description"></p>
+        <div id="panel" role="tabpanel" aria-labelledby="tab-files" tabindex="0"><div id="list"></div></div>
+        <div class="pagination"><span id="result-count" role="status" aria-live="polite"></span><div class="page-buttons"><button id="prev" type="button" aria-label="предыдущая страница">←</button><span class="page-number" id="page-number"></span><button id="next" type="button" aria-label="следующая страница">→</button></div></div>
+      </section>
+      <div class="notes">
+        <div class="note"><strong>размер и место на диске</strong><p>здесь указан логический размер файлов. сжатие, разреженные файлы и клоны файловой системы влияют на реальное свободное место. вложенные папки включают размер своих подпапок — их нельзя складывать.</p></div>
+        <div class="note"><strong>никаких автоматических удалений</strong><p id="safety-note">совпадение содержимого ещё не означает, что копия не нужна. проверь пути и назначение файлов перед очисткой. отчёт не меняет исходные файлы.</p></div>
+      </div>
+    </main>
+    <footer class="footer"><span>.disklens · без сервера и внешних запросов</span><span>отчёт содержит имена и пути файлов · <button class="download" id="download" type="button">скачать данные JSON</button></span></footer>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script type="application/json" id="report-data">__DISKLENS_DATA__</script>
+  <script>
+  (() => {
+    'use strict';
+    const report = JSON.parse(document.getElementById('report-data').textContent);
+    const summary = report.summary;
+    const el = id => document.getElementById(id);
+    const number = value => Number(value || 0).toLocaleString('ru-RU');
+    const bytes = value => {
+      if (!value) return '0 Б';
+      const units = ['Б', 'КиБ', 'МиБ', 'ГиБ', 'ТиБ', 'ПиБ'];
+      const index = Math.min(Math.floor(Math.log(Math.abs(value)) / Math.log(1024)), units.length - 1);
+      return (value / 1024 ** index).toLocaleString('ru-RU', {maximumFractionDigits:index ? 1 : 0}) + ' ' + units[index];
+    };
+    const date = (value, time = false) => {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString('ru-RU', time ? {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'} : {year:'numeric',month:'short',day:'numeric'});
+    };
+    const node = (tag, className, text) => {
+      const item = document.createElement(tag);
+      if (className) item.className = className;
+      if (text !== undefined) item.textContent = text;
+      return item;
+    };
+    let toastTimer;
+    function toast(message) {
+      el('toast').textContent = message;
+      el('toast').hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el('toast').hidden = true; }, 2400);
+    }
+    async function copy(value) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(value);
+        } else {
+          const field = node('textarea');
+          field.value = value;
+          field.style.cssText = 'position:fixed;left:-9999px;top:0';
+          document.body.append(field);
+          field.select();
+          const success = document.execCommand('copy');
+          field.remove();
+          if (!success) throw new Error('clipboard unavailable');
+        }
+        toast('путь скопирован');
+      } catch (_) {
+        toast('не удалось скопировать — выдели путь вручную');
+      }
+    }
+    function copyButton(path) {
+      const button = node('button', 'copy', 'копировать');
+      button.type = 'button';
+      button.setAttribute('aria-label', 'копировать путь: ' + path);
+      button.addEventListener('click', () => copy(fullPath(path)));
+      return button;
+    }
+    function fullPath(path) {
+      if (path === '.') return report.root;
+      const separator = report.root.includes('\\') && !report.root.includes('/') ? '\\' : '/';
+      return report.root.replace(/[\\/]$/, '') + separator + path.split('/').join(separator);
+    }
+    el('root-path').textContent = report.root;
+    el('copy-root').addEventListener('click', () => copy(report.root));
+    el('scan-date').textContent = date(report.created_at, true);
+    el('scan-duration').textContent = 'сканирование: ' + Number(report.elapsed_seconds || 0).toLocaleString('ru-RU', {maximumFractionDigits:1}) + ' с';
+    el('total-size').textContent = bytes(summary.total_bytes);
+    el('file-count').textContent = number(summary.files);
+    el('directory-count').textContent = 'папок: ' + number(summary.directories);
+    el('duplicate-size').textContent = bytes(summary.duplicate_bytes);
+    el('duplicate-count').textContent = 'групп совпадений: ' + number(summary.duplicate_groups);
+    el('issue-count').textContent = number(report.issues.length);
+    el('issue-detail').textContent = report.issues.length ? 'ошибки доступа и изменения файлов' : 'сканирование без замечаний';
+    el('safety-note').append(document.createTextNode(' пропущено символических ссылок: ' + number(summary.symlinks_skipped) + ', жёстких ссылок: ' + number(summary.hardlinks_skipped) + ', по исключениям: ' + number(summary.excluded) + '.'));
+
+    const tabs = [...document.querySelectorAll('[data-tab]')];
+    const sources = {files:report.files, duplicates:report.duplicates, directories:report.directories, issues:report.issues};
+    const descriptions = {
+      files:'все найденные файлы, начиная с самых больших. размер указан в двоичных единицах: 1 КиБ = 1024 Б.',
+      duplicates:'совпадение подтверждено SHA-256. объём копий рассчитан при сохранении одного файла в каждой группе; фактическое освобождение места может отличаться.',
+      directories:'размер каждой папки вместе с её содержимым и подпапками. строка «.» — вся просканированная папка.',
+      issues:'файлы и папки, которые не удалось прочитать, и файлы, изменившиеся во время сканирования.'
+    };
+    const options = {
+      files:[['size-desc','сначала большие'],['size-asc','сначала маленькие'],['path','по имени'],['modified','сначала новые']],
+      duplicates:[['reclaimable_bytes-desc','по объёму копий'],['size-desc','по размеру файла'],['path','по имени']],
+      directories:[['size-desc','сначала большие'],['size-asc','сначала маленькие'],['path','по имени'],['files-desc','по числу файлов']],
+      issues:[['path','по пути'],['message','по замечанию']]
+    };
+    const state = {tab:'files', query:'', sort:'size-desc', page:0, rows:[]};
+    const pageSize = () => state.tab === 'duplicates' ? 15 : 50;
+    tabs.forEach(tab => {
+      el('badge-' + tab.dataset.tab).textContent = number(sources[tab.dataset.tab].length);
+      tab.addEventListener('click', () => activate(tab.dataset.tab));
+      tab.addEventListener('keydown', event => {
+        const index = tabs.indexOf(tab);
+        let next;
+        if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+        if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+        if (event.key === 'Home') next = 0;
+        if (event.key === 'End') next = tabs.length - 1;
+        if (next !== undefined) { event.preventDefault(); activate(tabs[next].dataset.tab); tabs[next].focus(); }
+      });
+    });
+    function activate(tab) {
+      state.tab = tab;
+      state.sort = options[tab][0][0];
+      state.page = 0;
+      tabs.forEach(button => {
+        const active = button.dataset.tab === tab;
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+      });
+      el('panel').setAttribute('aria-labelledby', 'tab-' + tab);
+      el('description').textContent = descriptions[tab];
+      el('sort').replaceChildren(...options[tab].map(([value, label]) => {
+        const option = node('option', '', label); option.value = value; return option;
+      }));
+      update();
+    }
+    function update() {
+      const query = state.query.toLocaleLowerCase('ru-RU');
+      state.rows = sources[state.tab].filter(item => {
+        if (!query) return true;
+        if (state.tab === 'duplicates') return item.paths.some(path => path.toLocaleLowerCase('ru-RU').includes(query));
+        return (item.path + ' ' + (item.message || '')).toLocaleLowerCase('ru-RU').includes(query);
+      });
+      const path = item => item.path || item.paths[0] || '';
+      state.rows.sort((a,b) => {
+        if (state.sort === 'path') return path(a).localeCompare(path(b), 'ru');
+        if (state.sort === 'message') return a.message.localeCompare(b.message, 'ru');
+        if (state.sort === 'modified') return b.modified.localeCompare(a.modified) || path(a).localeCompare(path(b), 'ru');
+        const [key, direction] = state.sort.split('-');
+        return (a[key] - b[key]) * (direction === 'asc' ? 1 : -1) || path(a).localeCompare(path(b), 'ru');
+      });
+      render();
+    }
+    function pathCell(path, folder = false) {
+      const cell = node('td', 'path-cell');
+      const line = node('div', 'path-line');
+      const parts = path.split('/');
+      const name = parts.pop() || path;
+      const extension = name.includes('.') ? name.split('.').pop().slice(0,4) : 'file';
+      line.append(node('span', 'file-icon' + (folder ? ' folder' : ''), folder ? 'dir' : extension));
+      const text = node('div');
+      text.append(node('div', 'path-name', name));
+      if (parts.length) text.append(node('div', 'path-parent', parts.join('/') + '/'));
+      line.append(text); cell.append(line); return cell;
+    }
+    function sizeCell(size, maxSize) {
+      const cell = node('td', 'num', bytes(size));
+      cell.title = number(size) + ' Б';
+      const track = node('span', 'size-track');
+      const bar = node('span');
+      bar.style.width = Math.max(1, maxSize ? size / maxSize * 100 : 0) + '%';
+      track.append(bar); cell.append(track); return cell;
+    }
+    function table(rows) {
+      const wrapper = node('div', 'table-wrap');
+      const table = node('table');
+      const head = node('thead'); const heading = node('tr');
+      const columns = state.tab === 'files' ? [['файл',''],['размер','num'],['изменён','date-heading'],['','']] : state.tab === 'directories' ? [['папка',''],['размер','num'],['файлов внутри','num'],['','']] : [['путь',''],['замечание',''],['','']];
+      columns.forEach(([label, cls]) => { const th = node('th', cls, label); th.scope = 'col'; heading.append(th); });
+      head.append(heading); table.append(head);
+      const body = node('tbody');
+      const maxSize = Math.max(1, ...rows.map(row => row.size || 0));
+      rows.forEach(item => {
+        const row = node('tr'); row.append(pathCell(item.path, state.tab === 'directories'));
+        if (state.tab === 'files') {
+          row.append(sizeCell(item.size, maxSize), node('td', 'date', date(item.modified)));
+        } else if (state.tab === 'directories') {
+          row.append(sizeCell(item.size, maxSize), node('td', 'num', number(item.files)));
+        } else {
+          row.append(node('td', 'issue-message', item.message));
+        }
+        const action = node('td', 'actions'); action.append(copyButton(item.path)); row.append(action); body.append(row);
+      });
+      table.append(body); wrapper.append(table); return wrapper;
+    }
+    function duplicateGroups(rows) {
+      const list = node('div', 'groups');
+      rows.forEach(item => {
+        const group = node('article', 'duplicate');
+        const top = node('div', 'duplicate-top');
+        top.append(node('strong', '', bytes(item.size) + ' · файлов: ' + number(item.paths.length)), node('span', 'reclaimable', 'копии: ' + bytes(item.reclaimable_bytes)));
+        group.append(top);
+        const paths = node('div'); let shown = 0;
+        const more = node('button', 'more-paths'); more.type = 'button';
+        const appendPaths = count => {
+          const limit = Math.min(item.paths.length, shown + count);
+          for (; shown < limit; shown++) {
+            const row = node('div', 'duplicate-path');
+            row.append(node('span', 'path-marker', String(shown + 1)), node('code', '', item.paths[shown]), copyButton(item.paths[shown]));
+            paths.append(row);
+          }
+          more.hidden = shown >= item.paths.length;
+          more.textContent = 'показать ещё ' + number(Math.min(20, item.paths.length - shown)) + ' из ' + number(item.paths.length - shown) + ' путей';
+        };
+        appendPaths(4);
+        more.addEventListener('click', () => appendPaths(20));
+        group.append(paths, more, node('div', 'hash', 'sha256 · ' + item.sha256));
+        list.append(group);
+      });
+      return list;
+    }
+    function render() {
+      const total = state.rows.length;
+      const pages = Math.max(1, Math.ceil(total / pageSize()));
+      state.page = Math.min(state.page, pages - 1);
+      const start = state.page * pageSize();
+      const rows = state.rows.slice(start, start + pageSize());
+      if (!rows.length) {
+        const empty = node('div', 'empty');
+        const message = state.query ? ['ничего не найдено','попробуй другой запрос или открой соседний раздел.'] : state.tab === 'duplicates' ? ['одинаковых копий не найдено','в этой папке нет подтверждённых дубликатов в пределах выбранных настроек.'] : state.tab === 'issues' ? ['всё прочитано без замечаний','сканирование не обнаружило ошибок доступа или изменившихся файлов.'] : ['здесь пока пусто','возможно, файлы не попали под выбранные настройки сканирования.'];
+        empty.append(node('strong','',message[0]),node('p','',message[1])); el('list').replaceChildren(empty);
+      } else {
+        el('list').replaceChildren(state.tab === 'duplicates' ? duplicateGroups(rows) : table(rows));
+      }
+      el('result-count').textContent = total ? number(start + 1) + '–' + number(start + rows.length) + ' из ' + number(total) + (state.query ? ' найденных' : '') : '0 результатов';
+      el('page-number').textContent = number(state.page + 1) + ' / ' + number(pages);
+      el('prev').disabled = state.page === 0;
+      el('next').disabled = state.page >= pages - 1;
+    }
+    let searchTimer;
+    el('search').addEventListener('input', event => {
+      clearTimeout(searchTimer);
+      state.query = event.target.value.trim(); state.page = 0;
+      searchTimer = setTimeout(update, 130);
+    });
+    el('sort').addEventListener('change', event => { state.sort = event.target.value; state.page = 0; update(); });
+    el('prev').addEventListener('click', () => { state.page--; render(); });
+    el('next').addEventListener('click', () => { state.page++; render(); });
+    el('download').addEventListener('click', () => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], {type:'application/json'}));
+      const link = node('a'); link.href = url; link.download = 'disklens-report.json';
+      document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    activate('files');
+  })();
+  </script>
+</body>
+</html>'''
