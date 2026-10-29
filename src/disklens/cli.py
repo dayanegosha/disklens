@@ -67,7 +67,25 @@ def _write_report(path: Path, content: str, *, force: bool) -> None:
             os.replace(temporary, path)
         else:
             # Создание ссылки не перезапишет файл, появившийся после предварительной проверки.
-            os.link(temporary, path)
+            try:
+                os.link(temporary, path)
+            except FileExistsError:
+                raise
+            except OSError:
+                # FAT/exFAT не поддерживают жёсткие ссылки. Режим x сохраняет защиту от перезаписи.
+                descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                                     | getattr(os, "O_BINARY", 0), 0o600)
+                identity = os.fstat(descriptor)
+                try:
+                    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                        stream.write(content)
+                except BaseException:
+                    try:
+                        if os.path.samestat(identity, path.stat(follow_symlinks=False)):
+                            path.unlink()
+                    except OSError:
+                        pass
+                    raise
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
@@ -132,14 +150,18 @@ def main(argv: list[str] | None = None) -> int:
     summary = report["summary"]
     if not args.quiet:
         print(f"{summary['files']} файлов · {format_size(summary['total_bytes'])}")
-        print(f"повторяющиеся данные: {format_size(summary['duplicate_bytes'])} "
-              f"в {summary['duplicate_groups']} группах")
+        if args.no_duplicates:
+            print("поиск дубликатов отключён")
+        else:
+            print(f"повторяющиеся данные: {format_size(summary['duplicate_bytes'])} "
+                  f"в {summary['duplicate_groups']} группах")
         for file in report["files"][:10]:
             print(f"{format_size(file['size']):>12}  {display_path(file['path'])}")
         for path in outputs:
             print(f"отчёт: {display_path(str(path))}")
     if report["issues"]:
-        print(f"замечаний: {len(report['issues'])}; подробности в отчёте", file=sys.stderr)
+        detail = "; подробности в отчёте" if outputs else ""
+        print(f"замечаний: {len(report['issues'])}{detail}", file=sys.stderr)
         if not outputs:
             for issue in report["issues"][:10]:
                 print(f"  {display_path(issue['path'])}: {display_path(issue['message'])}", file=sys.stderr)

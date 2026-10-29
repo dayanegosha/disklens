@@ -1,4 +1,5 @@
 import contextlib
+import errno
 import io
 import json
 import os
@@ -182,6 +183,28 @@ class CliTests(unittest.TestCase):
         cli._write_report(output, "второй отчёт", force=True)
 
         self.assertEqual(output.read_bytes(), "второй отчёт".encode("utf-8"))
+
+    def test_writer_supports_filesystems_without_hardlinks(self):
+        output = self.root / "отчёт.txt"
+        unsupported = OSError(errno.EOPNOTSUPP, "hardlinks are not supported")
+
+        with patch.object(cli.os, "link", side_effect=unsupported):
+            cli._write_report(output, "отчёт на съёмном диске", force=False)
+
+        self.assertEqual(output.read_bytes(), "отчёт на съёмном диске".encode("utf-8"))
+
+    def test_writer_preserves_a_file_created_after_its_preflight_check(self):
+        output = self.root / "report.txt"
+
+        def another_writer(source, destination):
+            Path(destination).write_text("other writer", encoding="utf-8")
+            raise FileExistsError(errno.EEXIST, "file already exists", str(destination))
+
+        with patch.object(cli.os, "link", side_effect=another_writer):
+            with self.assertRaises(FileExistsError):
+                cli._write_report(output, "my report", force=False)
+
+        self.assertEqual(output.read_text(encoding="utf-8"), "other writer")
 
 
 if __name__ == "__main__":
