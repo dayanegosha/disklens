@@ -32,6 +32,17 @@ def _matches(file: FileEntry, info: os.stat_result) -> bool:
             == (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns))
 
 
+def _read_exact(descriptor: int, count: int) -> bytes:
+    chunks = []
+    while count:
+        chunk = os.read(descriptor, count)
+        if not chunk:
+            raise ChangedFileError("файл укоротился при чтении")
+        chunks.append(chunk)
+        count -= len(chunk)
+    return b"".join(chunks)
+
+
 def _hash_file(root: Path, file: FileEntry, *, sample: bool) -> str:
     flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
     flags |= getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
@@ -41,9 +52,9 @@ def _hash_file(root: Path, file: FileEntry, *, sample: bool) -> str:
             raise ChangedFileError("файл изменился после обхода")
         digest = hashlib.sha256()
         if sample and file.size > 131072:
-            digest.update(os.read(descriptor, 65536))
+            digest.update(_read_exact(descriptor, 65536))
             os.lseek(descriptor, file.size - 65536, os.SEEK_SET)
-            digest.update(os.read(descriptor, 65536))
+            digest.update(_read_exact(descriptor, 65536))
         else:
             remaining = file.size
             while remaining:
@@ -191,6 +202,11 @@ def scan(
                     pending.append(path)
                     folders.add(relative)
                 elif stat.S_ISREG(info.st_mode):
+                    # DirEntry.stat в Windows не заполняет идентификаторы файла.
+                    if os.name == "nt":
+                        info = os.stat(path, follow_symlinks=False)
+                        if not stat.S_ISREG(info.st_mode):
+                            raise ChangedFileError("тип файла изменился после обхода")
                     identity = (info.st_dev, info.st_ino)
                     if info.st_ino and identity in seen:
                         hardlinks.append({"path": relative, "target": seen[identity]})

@@ -1,3 +1,5 @@
+import hashlib
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -46,6 +48,28 @@ class ScannerRegressionTests(unittest.TestCase):
         self.assertEqual([file["path"] for file in report["files"]], ["source.txt"])
         self.assertEqual(report["summary"]["total_bytes"], 6)
         self.assertEqual(report["summary"]["excluded"], 1)
+
+    def test_short_sample_reads_do_not_hide_identical_large_files(self):
+        content = bytes(range(256)) * 1025
+        first = self.root / "first.bin"
+        first.write_bytes(content)
+        (self.root / "second.bin").write_bytes(content)
+        short_read_identity = (first.stat().st_dev, first.stat().st_ino)
+        read = os.read
+
+        def different_read_lengths(descriptor, count):
+            info = os.fstat(descriptor)
+            if (info.st_dev, info.st_ino) == short_read_identity:
+                count = min(count, 8192)
+            return read(descriptor, count)
+
+        with patch.object(scanner.os, "read", side_effect=different_read_lengths):
+            report = scanner.scan(self.root)
+
+        self.assertEqual(len(report["duplicates"]), 1)
+        self.assertEqual(report["duplicates"][0]["paths"], ["first.bin", "second.bin"])
+        self.assertEqual(report["duplicates"][0]["sha256"], hashlib.sha256(content).hexdigest())
+        self.assertEqual(report["issues"], [])
 
 
 if __name__ == "__main__":

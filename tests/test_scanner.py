@@ -102,8 +102,19 @@ class ScannerTests(unittest.TestCase):
                          [120, 100])
         self.assertEqual(report["summary"]["duplicate_bytes"], 220)
 
-    def test_unicode_and_markup_are_preserved_as_file_names(self):
-        paths = ["архив/отпуск & <лето>.txt", "копия/фото '2026'.txt"]
+    def test_unicode_is_preserved_in_file_names(self):
+        paths = ["архив/отпуск & лето.txt", "копия/фото '2026'.txt"]
+        for path in paths:
+            self.write(path, b"same")
+
+        report = scanner.scan(self.root)
+
+        self.assertEqual({file["path"] for file in report["files"]}, set(paths))
+        self.assertEqual(set(report["duplicates"][0]["paths"]), set(paths))
+
+    @unittest.skipIf(os.name == "nt", "Windows file names reject angle brackets")
+    def test_markup_is_preserved_in_file_names(self):
+        paths = ["архив/отпуск <лето>.txt", "копия/<фото>.txt"]
         for path in paths:
             self.write(path, b"same")
 
@@ -253,6 +264,7 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(report["summary"]["changed_files"], 1)
         self.assertTrue(any(issue["path"] == "changed.txt" for issue in report["issues"]))
 
+    @unittest.skipIf(os.name == "nt", "Windows locks open files against replacement")
     def test_replacing_path_during_read_invalidates_the_old_file(self):
         replaced = self.write("changed.txt", b"same content")
         self.write("copy.txt", b"same content")
