@@ -230,6 +230,53 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(set(report["duplicates"][0]["paths"]), {"first.txt", "second.txt"})
         self.assertTrue(any(issue["path"] == "changed.txt" for issue in report["issues"]))
 
+    def test_real_content_change_during_read_is_detected(self):
+        changed = self.write("changed.txt", b"same content")
+        self.write("copy.txt", b"same content")
+        read = os.read
+        modified = False
+
+        def mutate_after_read(descriptor, size):
+            nonlocal modified
+            chunk = read(descriptor, size)
+            if not modified:
+                modified = True
+                with changed.open("ab") as stream:
+                    stream.write(b"!")
+            return chunk
+
+        with patch.object(scanner.os, "read", side_effect=mutate_after_read):
+            report = scanner.scan(self.root)
+
+        self.assertTrue(modified)
+        self.assertEqual(report["duplicates"], [])
+        self.assertEqual(report["summary"]["changed_files"], 1)
+        self.assertTrue(any(issue["path"] == "changed.txt" for issue in report["issues"]))
+
+    def test_replacing_path_during_read_invalidates_the_old_file(self):
+        replaced = self.write("changed.txt", b"same content")
+        self.write("copy.txt", b"same content")
+        read = os.read
+        modified = False
+
+        def replace_after_read(descriptor, size):
+            nonlocal modified
+            chunk = read(descriptor, size)
+            if not modified:
+                modified = True
+                replacement = self.root / "replacement.tmp"
+                replacement.write_bytes(b"same content")
+                replacement.replace(replaced)
+            return chunk
+
+        with patch.object(scanner.os, "read", side_effect=replace_after_read):
+            report = scanner.scan(self.root)
+
+        self.assertTrue(modified)
+        self.assertEqual(report["duplicates"], [])
+        self.assertEqual(report["summary"]["changed_files"], 1)
+        self.assertTrue(any(issue["path"] == "changed.txt" for issue in report["issues"]))
+
     def test_empty_directory_is_a_valid_report(self):
         report = scanner.scan(self.root)
 

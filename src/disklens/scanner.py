@@ -88,7 +88,7 @@ def _find_duplicates(root, files, minimum, summary, issues, progress):
             issue(file, error)
             return None
 
-    duplicates = []
+    confirmed = []
     for size, candidates in by_size.items():
         if len(candidates) < 2:
             continue
@@ -106,20 +106,23 @@ def _find_duplicates(root, files, minimum, summary, issues, progress):
                 if value is not None:
                     by_hash[value].append(file)
             for digest, group in by_hash.items():
-                if len(group) < 2:
-                    continue
-                valid = []
-                for file in group:
-                    try:
-                        if not _matches(file, os.stat(root / file.path, follow_symlinks=False)):
-                            raise ChangedFileError("файл изменился до завершения проверки")
-                        valid.append(file.path)
-                    except OSError as error:
-                        issue(file, error)
-                if len(valid) > 1:
-                    duplicates.append({"size": size, "sha256": digest,
-                                       "reclaimable_bytes": size * (len(valid) - 1),
-                                       "paths": sorted(valid)})
+                if len(group) > 1:
+                    confirmed.append((size, digest, group))
+    duplicates = []
+    # Перепроверяем все группы после чтения: поздний хэш мог занять несколько минут.
+    for size, digest, group in confirmed:
+        valid = []
+        for file in group:
+            try:
+                if not _matches(file, os.stat(root / file.path, follow_symlinks=False)):
+                    raise ChangedFileError("файл изменился до завершения проверки")
+                valid.append(file.path)
+            except OSError as error:
+                issue(file, error)
+        if len(valid) > 1:
+            duplicates.append({"size": size, "sha256": digest,
+                               "reclaimable_bytes": size * (len(valid) - 1),
+                               "paths": sorted(valid)})
     return sorted(duplicates, key=lambda row: (-row["reclaimable_bytes"], row["paths"]))
 
 
@@ -150,7 +153,7 @@ def scan(
     if not root.is_dir():
         raise NotADirectoryError(f"не папка: {root}")
     patterns = tuple(excludes)
-    ignored = {os.path.abspath(Path(path).expanduser()) for path in ignored_paths}
+    ignored = {str(Path(path).expanduser().resolve(strict=False)) for path in ignored_paths}
     files: list[FileEntry] = []
     issues: list[dict] = []
     hardlinks: list[dict] = []
